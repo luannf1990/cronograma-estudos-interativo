@@ -1,59 +1,64 @@
 # 🎓 Cronograma de Estudos Interativo
 
-Aplicação interativa para gerar cronogramas de estudo personalizados com visual moderno, opções dinâmicas e exportações em JSON e PDF. Ideal para estudantes que desejam organizar a rotina com eficiência e clareza.
+Aplicação interativa para gerar cronogramas de estudo personalizados com visual moderno, opções dinâmicas e exportações em JSON e PDF.  
+Ideal para estudantes que desejam organizar a rotina com eficiência e clareza.
 
 ---
 
 ## 🔥 Funcionalidades
 
 ✅ Geração automática de cronogramas com base em:
-- Datas escolhidas
-- Dias da semana disponíveis
-- Matérias selecionadas
-- Carga horária diária
+- Datas escolhidas  
+- Dias da semana disponíveis  
+- Matérias selecionadas  
+- Carga horária diária  
 
 ✅ Visual moderno com Tailwind CSS  
 ✅ Responsivo (funciona no celular)  
-✅ Exporta para **JSON** e **PDF**  
-✅ Marcação de aulas concluídas com **progresso salvo** no navegador  
-✅ Indicadores de tempo estimado de estudo e porcentagem concluída  
-✅ Efeitos animados para destacar progresso
+✅ Exportação para JSON e PDF  
+✅ Marcação de aulas concluídas com progresso em tempo real  
+✅ Armazenamento local de progresso  
+✅ Inclusão de lembretes e anotações (interface)  
+✅ Organização por matéria e duração da aula
 
 ---
 
-## 💡 Tecnologias Utilizadas
+## 🖼️ Screenshot
 
-- **HTML5**
-- **JavaScript (Vanilla)**
-- **Tailwind CSS**
-- **Font Awesome**
-- **LocalStorage**
-- **html2pdf.js**
+![Screenshot do Cronograma](https://github.com/luannf1990/cronograma-estudos-interativo/blob/main/screenshot.png?raw=true)
 
 ---
 
-## 📸 Demonstração
+## 🛠️ Tecnologias
 
-![Screenshot do Cronograma](https://github.com/luannf1990/cronograma-estudos-interativo/assets/your-screenshot-url-aqui)
+- HTML5  
+- Tailwind CSS  
+- Font Awesome  
+- JavaScript (puro)  
+- HTML2PDF.js  
+- LocalStorage
 
 ---
 
-## 📦 Executar localmente
+## 🚀 Como usar
 
-```bash
-# Clone o repositório
-git clone https://github.com/luannf1990/cronograma-estudos-interativo.git
+1. Clone ou baixe o repositório  
+2. Abra o arquivo `index.html` em seu navegador  
+3. Configure as datas, dias, matérias e horas por dia  
+4. Clique em **Gerar Cronograma**  
+5. Acompanhe seu progresso, adicione lembretes e exporte quando quiser!
 
-# Abra o arquivo no navegador
-index.html
+---
 
+## 📂 Organização
 
-👨‍💻 Desenvolvedor
-Luan Nascimento Faria
-Prompt Engineer | IA Generativa com GPT-4 | Automação de Processos, Análise de Dados, OCR e WhatsApp
+- `index.html`: aplicação completa  
+- `screenshot.png`: imagem de exemplo usada no README  
+- `README.md`: este arquivo
 
-📫 Contato: equipeeletrofusion@gmail.com
-🔗 Portfólio: github.com/luannf1990
+---
 
-📃 Licença
-Este projeto está sob a licença MIT.
+## ✨ Desenvolvido por
+
+**Luan Nascimento Faria**  
+📬 [LinkedIn](https://www.linkedin.com/in/luan-nascimento-faria) | 💻 [GitHub](https://github.com/luannf1990) | 📱 [WhatsApp](https://wa.me/5519996118109)
