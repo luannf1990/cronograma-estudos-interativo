@@ -1,0 +1,1698 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cronograma Interativo de Estudos</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+        
+        /* Animation for completed rows */
+        @keyframes fadeIn {
+            from { background-color: transparent; }
+            to { background-color: #f0fdf4; }
+        }
+        
+        .completed-row {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        
+        /* Responsive table */
+        @media (max-width: 768px) {
+            .responsive-table thead {
+                display: none;
+            }
+            .responsive-table tr {
+                display: block;
+                margin-bottom: 1rem;
+                border-radius: 0.5rem;
+                box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+            }
+            .responsive-table td {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 0.5rem 1rem;
+                text-align: right;
+                border-bottom: 1px solid #e5e7eb;
+            }
+            .responsive-table td::before {
+                content: attr(data-label);
+                font-weight: 600;
+                color: #4b5563;
+                margin-right: 1rem;
+            }
+            .responsive-table td:last-child {
+                border-bottom: 0;
+            }
+        }
+        
+        /* Loading spinner */
+        .spinner {
+            width: 24px;
+            height: 24px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* Day selection */
+        .day-selector {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+        
+        .day-checkbox {
+            display: none;
+        }
+        
+        .day-label {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: #f3f4f6;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .day-checkbox:checked + .day-label {
+            background-color: #6366f1;
+            color: white;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <!-- Header -->
+        <header class="mb-8 text-center">
+            <h1 class="text-3xl md:text-4xl font-bold text-indigo-700 mb-2">Cronograma de Estudos</h1>
+            <p class="text-gray-600 max-w-2xl mx-auto">Organize seu plano de estudos entre as datas escolhidas</p>
+            
+            <div class="mt-6 flex flex-wrap justify-center gap-4">
+                <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200 flex-1 min-w-[200px]">
+                    <div class="flex items-center justify-between">
+                        <span class="text-gray-600">Total de aulas</span>
+                        <span id="total-lessons" class="text-xl font-bold text-indigo-600">155</span>
+                    </div>
+                </div>
+                <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200 flex-1 min-w-[200px]">
+                    <div class="flex items-center justify-between">
+                        <span class="text-gray-600">Concluídas</span>
+                        <span id="completed-lessons" class="text-xl font-bold text-green-600">0</span>
+                    </div>
+                </div>
+                <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200 flex-1 min-w-[200px]">
+                    <div class="flex items-center justify-between">
+                        <span class="text-gray-600">Progresso</span>
+                        <span id="progress-percentage" class="text-xl font-bold text-blue-600">0%</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Tempo estimado -->
+            <div class="mt-4 bg-white p-4 rounded-lg shadow-sm border border-gray-200 inline-block">
+                <div class="flex items-center gap-2">
+                    <span class="text-gray-600">Tempo estimado de estudo:</span>
+                    <span id="estimated-time" class="font-bold text-indigo-600">0 horas</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Controls -->
+        <div class="mb-6 bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+            <div class="flex flex-wrap items-center justify-between gap-4">
+                <div class="flex-1 min-w-[200px]">
+                    <label for="start-date" class="block text-sm font-medium text-gray-700 mb-1">Data de início</label>
+                    <input type="date" id="start-date" class="w-full p-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500">
+                </div>
+                <div class="flex-1 min-w-[200px]">
+                    <label for="end-date" class="block text-sm font-medium text-gray-700 mb-1">Data de término</label>
+                    <input type="date" id="end-date" class="w-full p-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500">
+                </div>
+                <div class="flex-1 min-w-[200px]">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Dias de estudo</label>
+                    <div class="day-selector">
+                        <input type="checkbox" id="day-0" class="day-checkbox">
+                        <label for="day-0" class="day-label" title="Domingo">D</label>
+                        
+                        <input type="checkbox" id="day-1" class="day-checkbox">
+                        <label for="day-1" class="day-label" title="Segunda">S</label>
+                        
+                        <input type="checkbox" id="day-2" class="day-checkbox">
+                        <label for="day-2" class="day-label" title="Terça">T</label>
+                        
+                        <input type="checkbox" id="day-3" class="day-checkbox">
+                        <label for="day-3" class="day-label" title="Quarta">Q</label>
+                        
+                        <input type="checkbox" id="day-4" class="day-checkbox" checked>
+                        <label for="day-4" class="day-label" title="Quinta">Q</label>
+                        
+                        <input type="checkbox" id="day-5" class="day-checkbox" checked>
+                        <label for="day-5" class="day-label" title="Sexta">S</label>
+                        
+                        <input type="checkbox" id="day-6" class="day-checkbox">
+                        <label for="day-6" class="day-label" title="Sábado">S</label>
+                    </div>
+                </div>
+                <div class="flex-1 min-w-[200px]">
+                    <label for="daily-hours" class="block text-sm font-medium text-gray-700 mb-1">Horas por dia</label>
+                    <select id="daily-hours" class="w-full p-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500">
+                        <option value="1">1 hora</option>
+                        <option value="1.5">1.5 horas</option>
+                        <option value="2" selected>2 horas</option>
+                        <option value="2.5">2.5 horas</option>
+                        <option value="3">3 horas</option>
+                        <option value="4">4 horas</option>
+                    </select>
+                </div>
+                <div class="flex items-end">
+                    <button id="generate-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md flex items-center gap-2 transition-colors">
+                        <i class="fas fa-sync-alt"></i> Gerar Cronograma
+                    </button>
+                </div>
+            </div>
+            
+            <div class="mt-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Matérias incluídas</label>
+                <div class="flex flex-wrap gap-3">
+                    <label class="inline-flex items-center">
+                        <input type="checkbox" class="subject-checkbox" value="Português" checked>
+                        <span class="ml-2">Português</span>
+                    </label>
+                    <label class="inline-flex items-center">
+                        <input type="checkbox" class="subject-checkbox" value="Matemática" checked>
+                        <span class="ml-2">Matemática</span>
+                    </label>
+                    <label class="inline-flex items-center">
+                        <input type="checkbox" class="subject-checkbox" value="Física" checked>
+                        <span class="ml-2">Física</span>
+                    </label>
+                    <label class="inline-flex items-center">
+                        <input type="checkbox" class="subject-checkbox" value="Química" checked>
+                        <span class="ml-2">Química</span>
+                    </label>
+                    <label class="inline-flex items-center">
+                        <input type="checkbox" class="subject-checkbox" value="Biologia" checked>
+                        <span class="ml-2">Biologia</span>
+                    </label>
+                    <label class="inline-flex items-center">
+                        <input type="checkbox" class="subject-checkbox" value="História" checked>
+                        <span class="ml-2">História</span>
+                    </label>
+                    <label class="inline-flex items-center">
+                        <input type="checkbox" class="subject-checkbox" value="Geografia" checked>
+                        <span class="ml-2">Geografia</span>
+                    </label>
+                    <label class="inline-flex items-center">
+                        <input type="checkbox" class="subject-checkbox" value="Especiais" checked>
+                        <span class="ml-2">Especiais/Extras</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- Schedule Table -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+            <div class="overflow-x-auto">
+                <table id="schedule-table" class="w-full responsive-table">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Concluído</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Data</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dia da Semana</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Matéria</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Aula</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Duração</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="schedule-body" class="bg-white divide-y divide-gray-200">
+                        <!-- Schedule will be generated here -->
+                        <tr>
+                            <td colspan="7" class="px-6 py-4 text-center text-gray-500">
+                                <i class="fas fa-calendar-alt text-4xl text-gray-300 mb-2"></i>
+                                <p class="text-lg">Gerar seu cronograma de estudos</p>
+                                <p class="text-sm mt-1">Configure as opções acima e clique em "Gerar Cronograma"</p>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Export buttons -->
+        <div class="mt-6 flex flex-wrap gap-3 justify-center">
+            <button id="export-json" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-md flex items-center gap-2 transition-colors">
+                <i class="fas fa-file-export"></i> Exportar JSON
+            </button>
+            <button id="export-pdf" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-md flex items-center gap-2 transition-colors">
+                <i class="fas fa-file-pdf"></i> Exportar PDF
+            </button>
+            <button id="clear-progress" class="bg-red-100 hover:bg-red-200 text-red-800 px-4 py-2 rounded-md flex items-center gap-2 transition-colors">
+                <i class="fas fa-trash-alt"></i> Limpar Progresso
+            </button>
+        </div>
+
+        <!-- Footer -->
+        <div class="mt-8 text-center text-gray-600">
+            Desenvolvido por Luan Nascimento <a href="https://wa.me/5519996118109" target="_blank"><i class="fab fa-whatsapp"></i></a>
+        </div>
+    </div>
+
+    <script>
+        // Study data with new content
+        const studyData = {
+            "Português": [
+                // Módulo 1
+                { lesson: "Sujeito", duration: 38.80 },
+                { lesson: "Sujeito Indeterminado", duration: 25.38 },
+                { lesson: "Interpretação Textual", duration: 50.52 },
+                // Módulo 2
+                { lesson: "Português – Sujeito Inexistente", duration: 29.38 },
+                { lesson: "Predicação Verbal", duration: 41.53 },
+                { lesson: "Vozes do Verbo", duration: 39.80 },
+                { lesson: "Português – Aposto e Vocativo", duration: 39.05 },
+                { lesson: "Figuras de Linguagem", duration: 40.80 },
+                { lesson: "Preposição", duration: 35.65 },
+                // Módulo 3
+                { lesson: "Predicação Verbal ll", duration: 32.97 },
+                { lesson: "Pronome Relativo", duration: 35.23 },
+                { lesson: "L. Portuguesa – Crase", duration: 21.02 },
+                { lesson: "Formação De Palavras", duration: 31.60 },
+                { lesson: "Verbo", duration: 27.82 },
+                { lesson: "Concordância Nominal", duration: 19.55 },
+                { lesson: "Resolução – Concordância Nominal", duration: 10.35 },
+                // Especiais/Extras
+                { lesson: "Você sabe o que é Predicativo do Sujeito?", duration: 3.95 },
+                { lesson: "Interpretação e Construção Textual", duration: 51.40 },
+                { lesson: "Importância e benefícios da leitura – Ao Vivo", duration: 45.43 },
+                { lesson: "Preposição e Predicação Verbal – Grv", duration: 97.42 },
+                { lesson: "Pronome Relativo – WB", duration: 48.75 },
+                { lesson: "Redação: Venha aprender a fazer a introdução do texto dissertativo-argumentativo", duration: 58.50 },
+                { lesson: "Redação – Analise da competência #1", duration: 57.80 },
+                { lesson: "Redação – Como posso criar um parágrafo de desenvolvimento?", duration: 57.50 },
+                { lesson: "Redação – Como posso criar um parágrafo de desenvolvimento #02", duration: 59.83 },
+                { lesson: "Redação – Como criar uma conclusão de um texto dissertativo-argumentativos", duration: 61.67 },
+                { lesson: "Redação – Competência III – Projeto de Texto", duration: 60.93 },
+                { lesson: "Sujeito Inexistente e Aposto e Vocativo", duration: 99.92 },
+                { lesson: "Semântica", duration: 0.00 }
+            ],
+            "Matemática": [
+                // Módulo 1
+                { lesson: "Expressões Numéricas", duration: 25.95 },
+                { lesson: "Frações", duration: 18.97 },
+                { lesson: "Matemática – Potência", duration: 25.68 },
+                { lesson: "Matemática – Resolução de Exercícios – Gravação", duration: 52.68 },
+                { lesson: "Área e Perímetro", duration: 52.43 },
+                // Módulo 2
+                { lesson: "Matemática – Equação", duration: 22.45 },
+                { lesson: "Sistemas De Equações 1º Grau", duration: 19.85 },
+                { lesson: "Matemática – Conjuntos", duration: 19.18 },
+                { lesson: "Função do 2º Grau", duration: 29.00 },
+                // Módulo 3
+                { lesson: "Matemática – M.M.C", duration: 14.00 },
+                { lesson: "Porcentagem", duration: 21.20 },
+                { lesson: "Teorema de Pitágoras", duration: 19.02 },
+                { lesson: "Operações Com Números Naturais", duration: 38.62 },
+                { lesson: "Matemática – Funções", duration: 29.18 },
+                { lesson: "Equação do 2º Grau", duration: 63.00 },
+                // Módulo 4
+                { lesson: "Média", duration: 27.25 },
+                { lesson: "Paralelismo e Semelhança de Triângulos", duration: 13.10 },
+                { lesson: "Relações Métricas Trigonométricas Do Triângulo Retângulo", duration: 15.58 },
+                { lesson: "Noções De Probabilidade", duration: 19.92 },
+                // Especiais/Extras
+                { lesson: "Dica Matemática", duration: 0.00 },
+                { lesson: "Equação do 2º Grau", duration: 0.00 },
+                { lesson: "Matemática – Sistema de Equações do 1º grau – Gravação", duration: 49.00 },
+                { lesson: "Textos na Matemática", duration: 46.17 },
+                { lesson: "Regra de Três Simples: Direta e Inversa", duration: 36.17 }
+            ],
+            "Física": [
+                // Módulo 1
+                { lesson: "Cinemática 1", duration: 34.35 },
+                { lesson: "Cinemática 2", duration: 13.77 },
+                { lesson: "Cinemática / Resolução de Exercícios", duration: 37.02 },
+                { lesson: "Física – Aceleração", duration: 34.33 },
+                // Módulo 2
+                { lesson: "Grandezas físicas e unidades de Medida", duration: 21.83 },
+                { lesson: "Física – Forças", duration: 27.95 },
+                // Módulo 3
+                { lesson: "Física – Lei de Kepler", duration: 25.33 },
+                { lesson: "Lei de Kepler 2", duration: 18.25 },
+                { lesson: "Pressão, Densidade e Massa Específica – Parte 1", duration: 26.33 },
+                { lesson: "Pressão, Densidade e Massa Específica – Parte 2", duration: 24.37 },
+                // Módulo 4
+                { lesson: "Física – Energia", duration: 30.42 },
+                { lesson: "Trabalho e Potência", duration: 31.83 },
+                { lesson: "Gravitação", duration: 43.70 },
+                { lesson: "Física Óptica", duration: 36.33 },
+                { lesson: "Resolução – Física Óptica", duration: 14.00 },
+                // Especiais/Extras
+                { lesson: "Física – Resolução de Exercícios", duration: 60.00 },
+                { lesson: "Cinemática", duration: 49.50 }
+            ],
+            "Química": [
+                // Módulo 1
+                { lesson: "Química – Conceitos Fundamentos – Gravação", duration: 56.92 },
+                { lesson: "Química – Substancias e Misturas", duration: 38.05 },
+                { lesson: "Química – Substâncias Puras e Misturas", duration: 37.82 },
+                // Módulo 2
+                { lesson: "Química – Método de Análise Imediata #01", duration: 20.02 },
+                { lesson: "Química – Método de Análise Imediata #02", duration: 26.73 },
+                { lesson: "Química – Semelhanças Atômicas", duration: 38.52 },
+                { lesson: "Atomística", duration: 38.65 },
+                { lesson: "Massa Atômica, Massa Molecular e Mol", duration: 41.00 },
+                // Módulo 3
+                { lesson: "Reações Químicas", duration: 19.37 },
+                // Módulo 4
+                { lesson: "Sais E Óxidos", duration: 16.68 },
+                { lesson: "Resolução – Sais E Óxidos", duration: 12.73 },
+                { lesson: "Química Ambiental", duration: 17.82 },
+                { lesson: "Resolução – Química Ambiental", duration: 17.00 },
+                { lesson: "Distribuição Eletrônica", duration: 27.92 },
+                { lesson: "Ligações Químicas", duration: 22.37 },
+                { lesson: "Resolução Ligações Químicas", duration: 11.42 },
+                { lesson: "Ácidos E Bases", duration: 19.87 },
+                { lesson: "Resolução – Ácidos E Bases", duration: 14.75 },
+                // Especiais/Extras
+                { lesson: "A química e a Pandemia causada pela Covid-19", duration: 55.00 },
+                { lesson: "A Química está em todo o lugar", duration: 62.00 },
+                { lesson: "A química está em todo lugar (parte II)", duration: 62.98 },
+                { lesson: "A química do gás carbônico", duration: 64.43 },
+                { lesson: "Poluição Química Metais pesados, lixo radioativo e plástico", duration: 70.00 }
+            ],
+            "Biologia": [
+                // Módulo 1
+                { lesson: "Bioquímica E Moléculas Orgânicas", duration: 23.92 },
+                { lesson: "Classificação dos Seres Vivos", duration: 17.83 },
+                // Módulo 2
+                { lesson: "Citologia", duration: 26.28 },
+                { lesson: "Resolução – Citologia", duration: 8.00 },
+                { lesson: "Vírus, Bactérias e Protozoários", duration: 52.78 },
+                // Módulo 4
+                { lesson: "Microbiologia – Reino Monera", duration: 22.52 },
+                { lesson: "Resolução – Microbiologia – Reino Monera", duration: 9.33 },
+                { lesson: "Microbiologia – Vírus", duration: 19.37 },
+                { lesson: "Resolução – Microbiologia – Vírus", duration: 9.22 },
+                { lesson: "Fungos – Reino Fungi", duration: 16.90 },
+                { lesson: "Resolução – Fungos", duration: 7.00 },
+                { lesson: "Microbiologia – Reino Protista", duration: 21.97 },
+                { lesson: "Resolução – Microbiologia – Reino Protista", duration: 6.50 },
+                { lesson: "Poríferos e Cnidários", duration: 17.50 },
+                { lesson: "Resolução – Poríferos e Cnidários", duration: 6.17 },
+                { lesson: "Zoologia – Platelmintos", duration: 16.10 },
+                { lesson: "Resolução – Platelmintos", duration: 7.50 },
+                // Especiais/Extras
+                { lesson: "Mitocôndrias", duration: 1.32 },
+                { lesson: "Atualidades de Biologia", duration: 61.97 },
+                { lesson: "Evolução Humana", duration: 49.00 },
+                { lesson: "Biologia #10", duration: 29.60 },
+                { lesson: "Biologia #11", duration: 49.18 },
+                { lesson: "Biologia – 19/06", duration: 48.00 }
+            ],
+            "História": [
+                // Módulo 1
+                { lesson: "Período Pré Histórico", duration: 15.05 },
+                { lesson: "História – Egito e Mesopotâmia", duration: 20.80 },
+                { lesson: "Resolução – Egito e Mesopotâmia", duration: 8.03 },
+                // Módulo 2
+                { lesson: "História – Grécia", duration: 21.80 },
+                // Módulo 3
+                { lesson: "Idade Media – O Sistema Feudal", duration: 21.82 },
+                { lesson: "América Portuguesa", duration: 26.05 },
+                { lesson: "Resolução – América Portuguesa", duration: 8.00 },
+                { lesson: "História – Renascentismo Religioso", duration: 30.13 },
+                { lesson: "Resolução – Renascentismo Religioso", duration: 9.90 },
+                // Módulo 4
+                { lesson: "Revolução Industrial", duration: 25.17 },
+                { lesson: "Resolução – Revolução Industrial", duration: 8.75 },
+                { lesson: "Revolução Francesa", duration: 21.88 },
+                { lesson: "Resolução – Revolução Francesa", duration: 6.65 },
+                { lesson: "Brasil – O Fim do Período Colonial", duration: 15.78 },
+                { lesson: "Resolução – Brasil: O Fim do Período Colonial", duration: 6.00 },
+                { lesson: "Feudalismo e Renascimento", duration: 22.73 },
+                { lesson: "Resolução – Feudalismo e Renascimento", duration: 6.45 },
+                { lesson: "Colonialismo E Liberalismo", duration: 22.12 },
+                { lesson: "Colonialismo E Liberalismo – Resolução", duration: 4.00 }
+            ],
+            "Geografia": [
+                // Módulo 1
+                { lesson: "Geografia – Medidas De Comprimento", duration: 33.23 },
+                { lesson: "Brasil – Urbanização", duration: 23.68 },
+                { lesson: "Resolução – Urbanização", duration: 12.52 },
+                // Módulo 2
+                { lesson: "Climas Que Ocorrem No Brasil", duration: 29.32 },
+                { lesson: "Resolução – Climas Que Ocorrem No Brasil", duration: 10.53 },
+                { lesson: "Brasil – Vegetação", duration: 18.80 },
+                // Módulo 3
+                { lesson: "A Localização no Espaço", duration: 19.97 },
+                { lesson: "Resolução – A Localização no Espaço", duration: 11.00 },
+                // Especiais/Extras
+                { lesson: "Crise hídrica e o Aquecimento Global – o que os dois têm em comum?", duration: 61.00 },
+                { lesson: "Cartografia: noções básicas", duration: 69.00 }
+            ],
+            "Especiais": [
+                // Especiais/Extras
+                { lesson: "Plano de Estudos #2", duration: 45.02 },
+                { lesson: "Plantão Multidisciplinar", duration: 52.25 },
+                { lesson: "Plantão Multidisciplinar #04", duration: 41.47 },
+                { lesson: "Como Desacumular Matéria", duration: 37.67 },
+                { lesson: "Carreiras Profissionais em Alta!", duration: 63.75 },
+                { lesson: "METAS E OBJETIVOS", duration: 54.42 },
+                { lesson: "Técnica de Estudo Avançada", duration: 30.00 },
+                { lesson: "Planejamento Semanal", duration: 25.00 }
+            ]
+        };
+
+        // Days of week in Portuguese
+        const weekDays = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
+
+        // DOM elements
+        const generateBtn = document.getElementById('generate-btn');
+        const scheduleBody = document.getElementById('schedule-body');
+        const startDateInput = document.getElementById('start-date');
+        const endDateInput = document.getElementById('end-date');
+        const dailyHoursSelect = document.getElementById('daily-hours');
+        const subjectCheckboxes = document.querySelectorAll('.subject-checkbox');
+        const exportJsonBtn = document.getElementById('export-json');
+        const exportPdfBtn = document.getElementById('export-pdf');
+        const clearProgressBtn = document.getElementById('clear-progress');
+        const totalLessonsSpan = document.getElementById('total-lessons');
+        const completedLessonsSpan = document.getElementById('completed-lessons');
+        const progressPercentageSpan = document.getElementById('progress-percentage');
+        const estimatedTimeSpan = document.getElementById('estimated-time');
+        const dayCheckboxes = document.querySelectorAll('.day-checkbox');
+
+        // Set default start date to today and end date to 30 days later
+        const today = new Date();
+        const defaultEndDate = new Date();
+        defaultEndDate.setDate(today.getDate() + 30);
+        
+        startDateInput.valueAsDate = today;
+        endDateInput.valueAsDate = defaultEndDate;
+
+        // Generate schedule
+        generateBtn.addEventListener('click', generateSchedule);
+
+        // Export buttons
+        exportJsonBtn.addEventListener('click', exportToJson);
+        exportPdfBtn.addEventListener('click', exportToPdf);
+        clearProgressBtn.addEventListener('click', clearProgress);
+
+        // Load saved progress from localStorage
+        let completedLessons = JSON.parse(localStorage.getItem('completedLessons')) || {};
+        let totalGeneratedLessons = 0;
+        
+        // Update progress counters
+        function updateProgressCounters() {
+            const completed = Object.values(completedLessons).filter(v => v).length;
+            const percentage = totalGeneratedLessons > 0 ? Math.round((completed / 155) * 100) : 0;
+            
+            completedLessonsSpan.textContent = completed;
+            progressPercentageSpan.textContent = ${percentage}%;
+        }
+
+        // Generate schedule function
+        function generateSchedule() {
+            // Show loading state
+            const originalBtnContent = generateBtn.innerHTML;
+            generateBtn.innerHTML = '<div class="spinner"></div> Gerando...';
+            generateBtn.disabled = true;
+            
+            // Get selected subjects
+            const selectedSubjects = Array.from(subjectCheckboxes)
+                .filter(checkbox => checkbox.checked)
+                .map(checkbox => checkbox.value);
+            
+            if (selectedSubjects.length === 0) {
+                alert('Selecione pelo menos uma matéria para gerar o cronograma.');
+                generateBtn.innerHTML = originalBtnContent;
+                generateBtn.disabled = false;
+                return;
+            }
+            
+            // Get selected days (0=Sunday, 1=Monday, etc.)
+            const selectedDays = Array.from(dayCheckboxes)
+                .map((checkbox, index) => checkbox.checked ? index : null)
+                .filter(index => index !== null);
+            
+            if (selectedDays.length === 0) {
+                alert('Selecione pelo menos um dia da semana para estudo.');
+                generateBtn.innerHTML = originalBtnContent;
+                generateBtn.disabled = false;
+                return;
+            }
+            
+            // Get configuration
+            const startDate = new Date(startDateInput.value);
+            const endDate = new Date(endDateInput.value);
+            const dailyStudyMinutes = parseFloat(dailyHoursSelect.value) * 60;
+            
+            // Validate dates
+            if (startDate >= endDate) {
+                alert('A data de término deve ser posterior à data de início.');
+                generateBtn.innerHTML = originalBtnContent;
+                generateBtn.disabled = false;
+                return;
+            }
+            
+            // Prepare lessons from selected subjects
+            let allLessons = [];
+            selectedSubjects.forEach(subject => {
+                studyData[subject].forEach(lesson => {
+                    allLessons.push({
+                        subject,
+                        lesson: lesson.lesson,
+                        duration: lesson.duration
+                    });
+                });
+            });
+            
+            // Calculate total study time in hours
+            const totalStudyMinutes = allLessons.reduce((sum, lesson) => sum + lesson.duration, 0);
+            const totalStudyHours = (totalStudyMinutes / 60).toFixed(1);
+            estimatedTimeSpan.textContent = ${totalStudyHours} horas;
+            
+            // Shuffle lessons to mix subjects
+            allLessons = shuffleArray(allLessons);
+            
+            // Update total generated lessons for progress calculation
+            totalGeneratedLessons = allLessons.length;
+            
+            // Generate schedule dates between start and end dates (only selected days)
+            const scheduleDates = generateStudyDates(startDate, endDate, selectedDays);
+            
+            // Distribute lessons across available dates
+            const schedule = distributeLessons(scheduleDates, dailyStudyMinutes, allLessons);
+            
+            // Generate schedule HTML
+            renderSchedule(schedule);
+            
+            // Restore button state
+            setTimeout(() => {
+                generateBtn.innerHTML = originalBtnContent;
+                generateBtn.disabled = false;
+            }, 500);
+        }
+        
+        // Generate array of valid study dates between start and end dates (only selected days)
+        function generateStudyDates(startDate, endDate, selectedDays) {
+            const dates = [];
+            const currentDate = new Date(startDate);
+            
+            while (currentDate <= endDate) {
+                const dayOfWeek = currentDate.getDay();
+                
+                // Check if current day is selected
+                if (selectedDays.includes(dayOfWeek)) {
+                    dates.push(new Date(currentDate));
+                }
+                
+                currentDate.setDate(currentDate.getDate() + 1);
+            }
+            
+            return dates;
+        }
+        
+        // Distribute lessons across available dates
+        function distributeLessons(dates, dailyMinutes, lessons) {
+            const schedule = [];
+            let currentDateIndex = 0;
+            let currentDayMinutes = 0;
+            let lessonIndex = 0;
+            
+            while (lessonIndex < lessons.length && currentDateIndex < dates.length) {
+                const lesson = lessons[lessonIndex];
+                
+                // Check if we need to move to next day
+                if (currentDayMinutes + lesson.duration > dailyMinutes) {
+                    currentDateIndex++;
+                    currentDayMinutes = 0;
+                    
+                    // If we've run out of dates, break
+                    if (currentDateIndex >= dates.length) break;
+                }
+                
+                // Add lesson to schedule
+                schedule.push({
+                    date: dates[currentDateIndex],
+                    lesson: lesson,
+                    dayMinutesUsed: currentDayMinutes
+                });
+                
+                currentDayMinutes += lesson.duration;
+                lessonIndex++;
+            }
+            
+            // Check if all lessons were scheduled
+            if (lessonIndex < lessons.length) {
+                const remainingLessons = lessons.length - lessonIndex;
+                const remainingMinutes = lessons.slice(lessonIndex).reduce((sum, l) => sum + l.duration, 0);
+                const remainingHours = (remainingMinutes / 60).toFixed(1);
+                
+                alert(Atenção: Não foi possível agendar todas as aulas no período selecionado.\n\nFaltaram ${remainingLessons} aulas (${remainingHours} horas).\n\nConsidere aumentar o período, as horas diárias ou reduzir o número de matérias.);
+            }
+            
+            return schedule;
+        }
+        
+        // Render schedule to HTML
+        function renderSchedule(schedule) {
+            scheduleBody.innerHTML = '';
+            
+            if (schedule.length === 0) {
+                scheduleBody.innerHTML = 
+                    <tr>
+                        <td colspan="7" class="px-6 py-4 text-center text-gray-500">
+                            <i class="fas fa-exclamation-triangle text-4xl text-yellow-400 mb-2"></i>
+                            <p class="text-lg">Nenhuma aula foi agendada</p>
+                            <p class="text-sm mt-1">Ajuste as configurações para incluir mais tempo de estudo</p>
+                        </td>
+                    </tr>
+                ;
+                updateProgressCounters();
+                return;
+            }
+            
+            schedule.forEach((item, index) => {
+                const { date, lesson } = item;
+                const dayOfWeek = weekDays[date.getDay()];
+                const lessonId = ${date.toISOString().split('T')[0]}-${index};
+                const isCompleted = completedLessons[lessonId] || false;
+                
+                const row = document.createElement('tr');
+                if (isCompleted) {
+                    row.classList.add('bg-green-50', 'completed-row');
+                }
+                
+                row.innerHTML = 
+                    <td class="px-6 py-4 whitespace-nowrap" data-label="Concluído">
+                        <input type="checkbox" ${isCompleted ? 'checked' : ''} class="complete-checkbox h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded" data-lesson-id="${lessonId}">
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap" data-label="Data">
+                        <div class="text-sm text-gray-900">${formatDate(date)}</div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap" data-label="Dia da Semana">
+                        <div class="text-sm text-gray-900">${dayOfWeek}</div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap" data-label="Matéria">
+                        <div class="text-sm text-gray-900">${lesson.subject}</div>
+                    </td>
+                    <td class="px-6 py-4" data-label="Aula">
+                        <div class="text-sm text-gray-900">${lesson.lesson}</div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap" data-label="Duração">
+                        <div class="text-sm text-gray-900">${formatDuration(lesson.duration)}</div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium" data-label="Ações">
+                        <button class="text-indigo-600 hover:text-indigo-900 mr-3 note-btn" data-lesson-id="${lessonId}">
+                            <i class="fas fa-sticky-note"></i>
+                        </button>
+                        <button class="text-gray-600 hover:text-gray-900 reminder-btn" data-lesson-id="${lessonId}">
+                            <i class="fas fa-bell"></i>
+                        </button>
+                    </td>
+                ;
+                
+                scheduleBody.appendChild(row);
+            });
+            
+            // Add event listeners to checkboxes
+            document.querySelectorAll('.complete-checkbox').forEach(checkbox => {
+                checkbox.addEventListener('change', function() {
+                    const lessonId = this.dataset.lessonId;
+                    completedLessons[lessonId] = this.checked;
+                    localStorage.setItem('completedLessons', JSON.stringify(completedLessons));
+                    
+                    const row = this.closest('tr');
+                    if (this.checked) {
+                        row.classList.add('bg-green-50', 'completed-row');
+                    } else {
+                        row.classList.remove('bg-green-50', 'completed-row');
+                    }
+                    
+                    updateProgressCounters();
+                });
+            });
+            
+            // Add event listeners to action buttons
+            document.querySelectorAll('.note-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const lessonId = this.dataset.lessonId;
+                    alert(Adicionar nota para a aula ${lessonId});
+                });
+            });
+            
+            document.querySelectorAll('.reminder-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const lessonId = this.dataset.lessonId;
+                    alert(Configurar lembrete para a aula ${lessonId});
+                });
+            });
+            
+            // Update progress counters
+            updateProgressCounters();
+        }
+        
+        // Helper functions
+        function shuffleArray(array) {
+            const newArray = [...array];
+            for (let i = newArray.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+            }
+            return newArray;
+        }
+        
+        function formatDate(date) {
+            return date.toLocaleDateString('pt-BR');
+        }
+        
+        function formatDuration(minutes) {
+            const hours = Math.floor(minutes / 60);
+            const mins = Math.round(minutes % 60);
+            return ${hours}h ${mins}min;
+        }
+
+        // Export to JSON
+        function exportToJson() {
+            const schedule = Array.from(document.querySelectorAll('#schedule-table tbody tr'))
+                .map(row => {
+                    const cols = row.querySelectorAll('td');
+                    return {
+                        completed: cols[0].querySelector('input').checked,
+                        date: cols[1].textContent,
+                        day: cols[2].textContent,
+                        subject: cols[3].textContent,
+                        lesson: cols[4].textContent,
+                        duration: cols[5].textContent
+                    };
+                });
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(schedule, null, 2));
+            const downloadAnchorNode = document.createElement('a');
+            downloadAnchorNode.setAttribute("href", dataStr);
+            downloadAnchorNode.setAttribute("download", "cronograma_estudos.json");
+            document.body.appendChild(downloadAnchorNode);
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+        }
+
+        // Export to PDF (basic implementation using html2pdf)
+        function exportToPdf() {
+            const element = document.getElementById('schedule-table');
+            html2pdf().from(element).save('cronograma_estudos.pdf');
+        }
+
+        // Clear progress
+        function clearProgress() {
+            if (confirm('Tem certeza que deseja limpar todo o progresso?')) {
+                completedLessons = {};
+                localStorage.setItem('completedLessons', JSON.stringify(completedLessons));
+                updateProgressCounters();
+                document.querySelectorAll('.complete-checkbox').forEach(checkbox => {
+                    checkbox.checked = false;
+                    const row = checkbox.closest('tr');
+                    row.classList.remove('bg-green-50', 'completed-row');
+                });
+            }
+        }
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+</body>
+</html>
+
+
+gostaria de subir esse codigo no githb<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cronograma Interativo de Estudos</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+        
+        /* Animation for completed rows */
+        @keyframes fadeIn {
+            from { background-color: transparent; }
+            to { background-color: #f0fdf4; }
+        }
+        
+        .completed-row {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        
+        /* Responsive table */
+        @media (max-width: 768px) {
+            .responsive-table thead {
+                display: none;
+            }
+            .responsive-table tr {
+                display: block;
+                margin-bottom: 1rem;
+                border-radius: 0.5rem;
+                box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+            }
+            .responsive-table td {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 0.5rem 1rem;
+                text-align: right;
+                border-bottom: 1px solid #e5e7eb;
+            }
+            .responsive-table td::before {
+                content: attr(data-label);
+                font-weight: 600;
+                color: #4b5563;
+                margin-right: 1rem;
+            }
+            .responsive-table td:last-child {
+                border-bottom: 0;
+            }
+        }
+        
+        /* Loading spinner */
+        .spinner {
+            width: 24px;
+            height: 24px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* Day selection */
+        .day-selector {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+        
+        .day-checkbox {
+            display: none;
+        }
+        
+        .day-label {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: #f3f4f6;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .day-checkbox:checked + .day-label {
+            background-color: #6366f1;
+            color: white;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <!-- Header -->
+        <header class="mb-8 text-center">
+            <h1 class="text-3xl md:text-4xl font-bold text-indigo-700 mb-2">Cronograma de Estudos</h1>
+            <p class="text-gray-600 max-w-2xl mx-auto">Organize seu plano de estudos entre as datas escolhidas</p>
+            
+            <div class="mt-6 flex flex-wrap justify-center gap-4">
+                <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200 flex-1 min-w-[200px]">
+                    <div class="flex items-center justify-between">
+                        <span class="text-gray-600">Total de aulas</span>
+                        <span id="total-lessons" class="text-xl font-bold text-indigo-600">155</span>
+                    </div>
+                </div>
+                <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200 flex-1 min-w-[200px]">
+                    <div class="flex items-center justify-between">
+                        <span class="text-gray-600">Concluídas</span>
+                        <span id="completed-lessons" class="text-xl font-bold text-green-600">0</span>
+                    </div>
+                </div>
+                <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200 flex-1 min-w-[200px]">
+                    <div class="flex items-center justify-between">
+                        <span class="text-gray-600">Progresso</span>
+                        <span id="progress-percentage" class="text-xl font-bold text-blue-600">0%</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Tempo estimado -->
+            <div class="mt-4 bg-white p-4 rounded-lg shadow-sm border border-gray-200 inline-block">
+                <div class="flex items-center gap-2">
+                    <span class="text-gray-600">Tempo estimado de estudo:</span>
+                    <span id="estimated-time" class="font-bold text-indigo-600">0 horas</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Controls -->
+        <div class="mb-6 bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+            <div class="flex flex-wrap items-center justify-between gap-4">
+                <div class="flex-1 min-w-[200px]">
+                    <label for="start-date" class="block text-sm font-medium text-gray-700 mb-1">Data de início</label>
+                    <input type="date" id="start-date" class="w-full p-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500">
+                </div>
+                <div class="flex-1 min-w-[200px]">
+                    <label for="end-date" class="block text-sm font-medium text-gray-700 mb-1">Data de término</label>
+                    <input type="date" id="end-date" class="w-full p-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500">
+                </div>
+                <div class="flex-1 min-w-[200px]">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Dias de estudo</label>
+                    <div class="day-selector">
+                        <input type="checkbox" id="day-0" class="day-checkbox">
+                        <label for="day-0" class="day-label" title="Domingo">D</label>
+                        
+                        <input type="checkbox" id="day-1" class="day-checkbox">
+                        <label for="day-1" class="day-label" title="Segunda">S</label>
+                        
+                        <input type="checkbox" id="day-2" class="day-checkbox">
+                        <label for="day-2" class="day-label" title="Terça">T</label>
+                        
+                        <input type="checkbox" id="day-3" class="day-checkbox">
+                        <label for="day-3" class="day-label" title="Quarta">Q</label>
+                        
+                        <input type="checkbox" id="day-4" class="day-checkbox" checked>
+                        <label for="day-4" class="day-label" title="Quinta">Q</label>
+                        
+                        <input type="checkbox" id="day-5" class="day-checkbox" checked>
+                        <label for="day-5" class="day-label" title="Sexta">S</label>
+                        
+                        <input type="checkbox" id="day-6" class="day-checkbox">
+                        <label for="day-6" class="day-label" title="Sábado">S</label>
+                    </div>
+                </div>
+                <div class="flex-1 min-w-[200px]">
+                    <label for="daily-hours" class="block text-sm font-medium text-gray-700 mb-1">Horas por dia</label>
+                    <select id="daily-hours" class="w-full p-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500">
+                        <option value="1">1 hora</option>
+                        <option value="1.5">1.5 horas</option>
+                        <option value="2" selected>2 horas</option>
+                        <option value="2.5">2.5 horas</option>
+                        <option value="3">3 horas</option>
+                        <option value="4">4 horas</option>
+                    </select>
+                </div>
+                <div class="flex items-end">
+                    <button id="generate-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md flex items-center gap-2 transition-colors">
+                        <i class="fas fa-sync-alt"></i> Gerar Cronograma
+                    </button>
+                </div>
+            </div>
+            
+            <div class="mt-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Matérias incluídas</label>
+                <div class="flex flex-wrap gap-3">
+                    <label class="inline-flex items-center">
+                        <input type="checkbox" class="subject-checkbox" value="Português" checked>
+                        <span class="ml-2">Português</span>
+                    </label>
+                    <label class="inline-flex items-center">
+                        <input type="checkbox" class="subject-checkbox" value="Matemática" checked>
+                        <span class="ml-2">Matemática</span>
+                    </label>
+                    <label class="inline-flex items-center">
+                        <input type="checkbox" class="subject-checkbox" value="Física" checked>
+                        <span class="ml-2">Física</span>
+                    </label>
+                    <label class="inline-flex items-center">
+                        <input type="checkbox" class="subject-checkbox" value="Química" checked>
+                        <span class="ml-2">Química</span>
+                    </label>
+                    <label class="inline-flex items-center">
+                        <input type="checkbox" class="subject-checkbox" value="Biologia" checked>
+                        <span class="ml-2">Biologia</span>
+                    </label>
+                    <label class="inline-flex items-center">
+                        <input type="checkbox" class="subject-checkbox" value="História" checked>
+                        <span class="ml-2">História</span>
+                    </label>
+                    <label class="inline-flex items-center">
+                        <input type="checkbox" class="subject-checkbox" value="Geografia" checked>
+                        <span class="ml-2">Geografia</span>
+                    </label>
+                    <label class="inline-flex items-center">
+                        <input type="checkbox" class="subject-checkbox" value="Especiais" checked>
+                        <span class="ml-2">Especiais/Extras</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- Schedule Table -->
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+            <div class="overflow-x-auto">
+                <table id="schedule-table" class="w-full responsive-table">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Concluído</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Data</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dia da Semana</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Matéria</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Aula</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Duração</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="schedule-body" class="bg-white divide-y divide-gray-200">
+                        <!-- Schedule will be generated here -->
+                        <tr>
+                            <td colspan="7" class="px-6 py-4 text-center text-gray-500">
+                                <i class="fas fa-calendar-alt text-4xl text-gray-300 mb-2"></i>
+                                <p class="text-lg">Gerar seu cronograma de estudos</p>
+                                <p class="text-sm mt-1">Configure as opções acima e clique em "Gerar Cronograma"</p>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Export buttons -->
+        <div class="mt-6 flex flex-wrap gap-3 justify-center">
+            <button id="export-json" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-md flex items-center gap-2 transition-colors">
+                <i class="fas fa-file-export"></i> Exportar JSON
+            </button>
+            <button id="export-pdf" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-md flex items-center gap-2 transition-colors">
+                <i class="fas fa-file-pdf"></i> Exportar PDF
+            </button>
+            <button id="clear-progress" class="bg-red-100 hover:bg-red-200 text-red-800 px-4 py-2 rounded-md flex items-center gap-2 transition-colors">
+                <i class="fas fa-trash-alt"></i> Limpar Progresso
+            </button>
+        </div>
+
+        <!-- Footer -->
+        <div class="mt-8 text-center text-gray-600">
+            Desenvolvido por Luan Nascimento <a href="https://wa.me/5519996118109" target="_blank"><i class="fab fa-whatsapp"></i></a>
+        </div>
+    </div>
+
+    <script>
+        // Study data with new content
+        const studyData = {
+            "Português": [
+                // Módulo 1
+                { lesson: "Sujeito", duration: 38.80 },
+                { lesson: "Sujeito Indeterminado", duration: 25.38 },
+                { lesson: "Interpretação Textual", duration: 50.52 },
+                // Módulo 2
+                { lesson: "Português – Sujeito Inexistente", duration: 29.38 },
+                { lesson: "Predicação Verbal", duration: 41.53 },
+                { lesson: "Vozes do Verbo", duration: 39.80 },
+                { lesson: "Português – Aposto e Vocativo", duration: 39.05 },
+                { lesson: "Figuras de Linguagem", duration: 40.80 },
+                { lesson: "Preposição", duration: 35.65 },
+                // Módulo 3
+                { lesson: "Predicação Verbal ll", duration: 32.97 },
+                { lesson: "Pronome Relativo", duration: 35.23 },
+                { lesson: "L. Portuguesa – Crase", duration: 21.02 },
+                { lesson: "Formação De Palavras", duration: 31.60 },
+                { lesson: "Verbo", duration: 27.82 },
+                { lesson: "Concordância Nominal", duration: 19.55 },
+                { lesson: "Resolução – Concordância Nominal", duration: 10.35 },
+                // Especiais/Extras
+                { lesson: "Você sabe o que é Predicativo do Sujeito?", duration: 3.95 },
+                { lesson: "Interpretação e Construção Textual", duration: 51.40 },
+                { lesson: "Importância e benefícios da leitura – Ao Vivo", duration: 45.43 },
+                { lesson: "Preposição e Predicação Verbal – Grv", duration: 97.42 },
+                { lesson: "Pronome Relativo – WB", duration: 48.75 },
+                { lesson: "Redação: Venha aprender a fazer a introdução do texto dissertativo-argumentativo", duration: 58.50 },
+                { lesson: "Redação – Analise da competência #1", duration: 57.80 },
+                { lesson: "Redação – Como posso criar um parágrafo de desenvolvimento?", duration: 57.50 },
+                { lesson: "Redação – Como posso criar um parágrafo de desenvolvimento #02", duration: 59.83 },
+                { lesson: "Redação – Como criar uma conclusão de um texto dissertativo-argumentativos", duration: 61.67 },
+                { lesson: "Redação – Competência III – Projeto de Texto", duration: 60.93 },
+                { lesson: "Sujeito Inexistente e Aposto e Vocativo", duration: 99.92 },
+                { lesson: "Semântica", duration: 0.00 }
+            ],
+            "Matemática": [
+                // Módulo 1
+                { lesson: "Expressões Numéricas", duration: 25.95 },
+                { lesson: "Frações", duration: 18.97 },
+                { lesson: "Matemática – Potência", duration: 25.68 },
+                { lesson: "Matemática – Resolução de Exercícios – Gravação", duration: 52.68 },
+                { lesson: "Área e Perímetro", duration: 52.43 },
+                // Módulo 2
+                { lesson: "Matemática – Equação", duration: 22.45 },
+                { lesson: "Sistemas De Equações 1º Grau", duration: 19.85 },
+                { lesson: "Matemática – Conjuntos", duration: 19.18 },
+                { lesson: "Função do 2º Grau", duration: 29.00 },
+                // Módulo 3
+                { lesson: "Matemática – M.M.C", duration: 14.00 },
+                { lesson: "Porcentagem", duration: 21.20 },
+                { lesson: "Teorema de Pitágoras", duration: 19.02 },
+                { lesson: "Operações Com Números Naturais", duration: 38.62 },
+                { lesson: "Matemática – Funções", duration: 29.18 },
+                { lesson: "Equação do 2º Grau", duration: 63.00 },
+                // Módulo 4
+                { lesson: "Média", duration: 27.25 },
+                { lesson: "Paralelismo e Semelhança de Triângulos", duration: 13.10 },
+                { lesson: "Relações Métricas Trigonométricas Do Triângulo Retângulo", duration: 15.58 },
+                { lesson: "Noções De Probabilidade", duration: 19.92 },
+                // Especiais/Extras
+                { lesson: "Dica Matemática", duration: 0.00 },
+                { lesson: "Equação do 2º Grau", duration: 0.00 },
+                { lesson: "Matemática – Sistema de Equações do 1º grau – Gravação", duration: 49.00 },
+                { lesson: "Textos na Matemática", duration: 46.17 },
+                { lesson: "Regra de Três Simples: Direta e Inversa", duration: 36.17 }
+            ],
+            "Física": [
+                // Módulo 1
+                { lesson: "Cinemática 1", duration: 34.35 },
+                { lesson: "Cinemática 2", duration: 13.77 },
+                { lesson: "Cinemática / Resolução de Exercícios", duration: 37.02 },
+                { lesson: "Física – Aceleração", duration: 34.33 },
+                // Módulo 2
+                { lesson: "Grandezas físicas e unidades de Medida", duration: 21.83 },
+                { lesson: "Física – Forças", duration: 27.95 },
+                // Módulo 3
+                { lesson: "Física – Lei de Kepler", duration: 25.33 },
+                { lesson: "Lei de Kepler 2", duration: 18.25 },
+                { lesson: "Pressão, Densidade e Massa Específica – Parte 1", duration: 26.33 },
+                { lesson: "Pressão, Densidade e Massa Específica – Parte 2", duration: 24.37 },
+                // Módulo 4
+                { lesson: "Física – Energia", duration: 30.42 },
+                { lesson: "Trabalho e Potência", duration: 31.83 },
+                { lesson: "Gravitação", duration: 43.70 },
+                { lesson: "Física Óptica", duration: 36.33 },
+                { lesson: "Resolução – Física Óptica", duration: 14.00 },
+                // Especiais/Extras
+                { lesson: "Física – Resolução de Exercícios", duration: 60.00 },
+                { lesson: "Cinemática", duration: 49.50 }
+            ],
+            "Química": [
+                // Módulo 1
+                { lesson: "Química – Conceitos Fundamentos – Gravação", duration: 56.92 },
+                { lesson: "Química – Substancias e Misturas", duration: 38.05 },
+                { lesson: "Química – Substâncias Puras e Misturas", duration: 37.82 },
+                // Módulo 2
+                { lesson: "Química – Método de Análise Imediata #01", duration: 20.02 },
+                { lesson: "Química – Método de Análise Imediata #02", duration: 26.73 },
+                { lesson: "Química – Semelhanças Atômicas", duration: 38.52 },
+                { lesson: "Atomística", duration: 38.65 },
+                { lesson: "Massa Atômica, Massa Molecular e Mol", duration: 41.00 },
+                // Módulo 3
+                { lesson: "Reações Químicas", duration: 19.37 },
+                // Módulo 4
+                { lesson: "Sais E Óxidos", duration: 16.68 },
+                { lesson: "Resolução – Sais E Óxidos", duration: 12.73 },
+                { lesson: "Química Ambiental", duration: 17.82 },
+                { lesson: "Resolução – Química Ambiental", duration: 17.00 },
+                { lesson: "Distribuição Eletrônica", duration: 27.92 },
+                { lesson: "Ligações Químicas", duration: 22.37 },
+                { lesson: "Resolução Ligações Químicas", duration: 11.42 },
+                { lesson: "Ácidos E Bases", duration: 19.87 },
+                { lesson: "Resolução – Ácidos E Bases", duration: 14.75 },
+                // Especiais/Extras
+                { lesson: "A química e a Pandemia causada pela Covid-19", duration: 55.00 },
+                { lesson: "A Química está em todo o lugar", duration: 62.00 },
+                { lesson: "A química está em todo lugar (parte II)", duration: 62.98 },
+                { lesson: "A química do gás carbônico", duration: 64.43 },
+                { lesson: "Poluição Química Metais pesados, lixo radioativo e plástico", duration: 70.00 }
+            ],
+            "Biologia": [
+                // Módulo 1
+                { lesson: "Bioquímica E Moléculas Orgânicas", duration: 23.92 },
+                { lesson: "Classificação dos Seres Vivos", duration: 17.83 },
+                // Módulo 2
+                { lesson: "Citologia", duration: 26.28 },
+                { lesson: "Resolução – Citologia", duration: 8.00 },
+                { lesson: "Vírus, Bactérias e Protozoários", duration: 52.78 },
+                // Módulo 4
+                { lesson: "Microbiologia – Reino Monera", duration: 22.52 },
+                { lesson: "Resolução – Microbiologia – Reino Monera", duration: 9.33 },
+                { lesson: "Microbiologia – Vírus", duration: 19.37 },
+                { lesson: "Resolução – Microbiologia – Vírus", duration: 9.22 },
+                { lesson: "Fungos – Reino Fungi", duration: 16.90 },
+                { lesson: "Resolução – Fungos", duration: 7.00 },
+                { lesson: "Microbiologia – Reino Protista", duration: 21.97 },
+                { lesson: "Resolução – Microbiologia – Reino Protista", duration: 6.50 },
+                { lesson: "Poríferos e Cnidários", duration: 17.50 },
+                { lesson: "Resolução – Poríferos e Cnidários", duration: 6.17 },
+                { lesson: "Zoologia – Platelmintos", duration: 16.10 },
+                { lesson: "Resolução – Platelmintos", duration: 7.50 },
+                // Especiais/Extras
+                { lesson: "Mitocôndrias", duration: 1.32 },
+                { lesson: "Atualidades de Biologia", duration: 61.97 },
+                { lesson: "Evolução Humana", duration: 49.00 },
+                { lesson: "Biologia #10", duration: 29.60 },
+                { lesson: "Biologia #11", duration: 49.18 },
+                { lesson: "Biologia – 19/06", duration: 48.00 }
+            ],
+            "História": [
+                // Módulo 1
+                { lesson: "Período Pré Histórico", duration: 15.05 },
+                { lesson: "História – Egito e Mesopotâmia", duration: 20.80 },
+                { lesson: "Resolução – Egito e Mesopotâmia", duration: 8.03 },
+                // Módulo 2
+                { lesson: "História – Grécia", duration: 21.80 },
+                // Módulo 3
+                { lesson: "Idade Media – O Sistema Feudal", duration: 21.82 },
+                { lesson: "América Portuguesa", duration: 26.05 },
+                { lesson: "Resolução – América Portuguesa", duration: 8.00 },
+                { lesson: "História – Renascentismo Religioso", duration: 30.13 },
+                { lesson: "Resolução – Renascentismo Religioso", duration: 9.90 },
+                // Módulo 4
+                { lesson: "Revolução Industrial", duration: 25.17 },
+                { lesson: "Resolução – Revolução Industrial", duration: 8.75 },
+                { lesson: "Revolução Francesa", duration: 21.88 },
+                { lesson: "Resolução – Revolução Francesa", duration: 6.65 },
+                { lesson: "Brasil – O Fim do Período Colonial", duration: 15.78 },
+                { lesson: "Resolução – Brasil: O Fim do Período Colonial", duration: 6.00 },
+                { lesson: "Feudalismo e Renascimento", duration: 22.73 },
+                { lesson: "Resolução – Feudalismo e Renascimento", duration: 6.45 },
+                { lesson: "Colonialismo E Liberalismo", duration: 22.12 },
+                { lesson: "Colonialismo E Liberalismo – Resolução", duration: 4.00 }
+            ],
+            "Geografia": [
+                // Módulo 1
+                { lesson: "Geografia – Medidas De Comprimento", duration: 33.23 },
+                { lesson: "Brasil – Urbanização", duration: 23.68 },
+                { lesson: "Resolução – Urbanização", duration: 12.52 },
+                // Módulo 2
+                { lesson: "Climas Que Ocorrem No Brasil", duration: 29.32 },
+                { lesson: "Resolução – Climas Que Ocorrem No Brasil", duration: 10.53 },
+                { lesson: "Brasil – Vegetação", duration: 18.80 },
+                // Módulo 3
+                { lesson: "A Localização no Espaço", duration: 19.97 },
+                { lesson: "Resolução – A Localização no Espaço", duration: 11.00 },
+                // Especiais/Extras
+                { lesson: "Crise hídrica e o Aquecimento Global – o que os dois têm em comum?", duration: 61.00 },
+                { lesson: "Cartografia: noções básicas", duration: 69.00 }
+            ],
+            "Especiais": [
+                // Especiais/Extras
+                { lesson: "Plano de Estudos #2", duration: 45.02 },
+                { lesson: "Plantão Multidisciplinar", duration: 52.25 },
+                { lesson: "Plantão Multidisciplinar #04", duration: 41.47 },
+                { lesson: "Como Desacumular Matéria", duration: 37.67 },
+                { lesson: "Carreiras Profissionais em Alta!", duration: 63.75 },
+                { lesson: "METAS E OBJETIVOS", duration: 54.42 },
+                { lesson: "Técnica de Estudo Avançada", duration: 30.00 },
+                { lesson: "Planejamento Semanal", duration: 25.00 }
+            ]
+        };
+
+        // Days of week in Portuguese
+        const weekDays = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
+
+        // DOM elements
+        const generateBtn = document.getElementById('generate-btn');
+        const scheduleBody = document.getElementById('schedule-body');
+        const startDateInput = document.getElementById('start-date');
+        const endDateInput = document.getElementById('end-date');
+        const dailyHoursSelect = document.getElementById('daily-hours');
+        const subjectCheckboxes = document.querySelectorAll('.subject-checkbox');
+        const exportJsonBtn = document.getElementById('export-json');
+        const exportPdfBtn = document.getElementById('export-pdf');
+        const clearProgressBtn = document.getElementById('clear-progress');
+        const totalLessonsSpan = document.getElementById('total-lessons');
+        const completedLessonsSpan = document.getElementById('completed-lessons');
+        const progressPercentageSpan = document.getElementById('progress-percentage');
+        const estimatedTimeSpan = document.getElementById('estimated-time');
+        const dayCheckboxes = document.querySelectorAll('.day-checkbox');
+
+        // Set default start date to today and end date to 30 days later
+        const today = new Date();
+        const defaultEndDate = new Date();
+        defaultEndDate.setDate(today.getDate() + 30);
+        
+        startDateInput.valueAsDate = today;
+        endDateInput.valueAsDate = defaultEndDate;
+
+        // Generate schedule
+        generateBtn.addEventListener('click', generateSchedule);
+
+        // Export buttons
+        exportJsonBtn.addEventListener('click', exportToJson);
+        exportPdfBtn.addEventListener('click', exportToPdf);
+        clearProgressBtn.addEventListener('click', clearProgress);
+
+        // Load saved progress from localStorage
+        let completedLessons = JSON.parse(localStorage.getItem('completedLessons')) || {};
+        let totalGeneratedLessons = 0;
+        
+        // Update progress counters
+        function updateProgressCounters() {
+            const completed = Object.values(completedLessons).filter(v => v).length;
+            const percentage = totalGeneratedLessons > 0 ? Math.round((completed / 155) * 100) : 0;
+            
+            completedLessonsSpan.textContent = completed;
+            progressPercentageSpan.textContent = ${percentage}%;
+        }
+
+        // Generate schedule function
+        function generateSchedule() {
+            // Show loading state
+            const originalBtnContent = generateBtn.innerHTML;
+            generateBtn.innerHTML = '<div class="spinner"></div> Gerando...';
+            generateBtn.disabled = true;
+            
+            // Get selected subjects
+            const selectedSubjects = Array.from(subjectCheckboxes)
+                .filter(checkbox => checkbox.checked)
+                .map(checkbox => checkbox.value);
+            
+            if (selectedSubjects.length === 0) {
+                alert('Selecione pelo menos uma matéria para gerar o cronograma.');
+                generateBtn.innerHTML = originalBtnContent;
+                generateBtn.disabled = false;
+                return;
+            }
+            
+            // Get selected days (0=Sunday, 1=Monday, etc.)
+            const selectedDays = Array.from(dayCheckboxes)
+                .map((checkbox, index) => checkbox.checked ? index : null)
+                .filter(index => index !== null);
+            
+            if (selectedDays.length === 0) {
+                alert('Selecione pelo menos um dia da semana para estudo.');
+                generateBtn.innerHTML = originalBtnContent;
+                generateBtn.disabled = false;
+                return;
+            }
+            
+            // Get configuration
+            const startDate = new Date(startDateInput.value);
+            const endDate = new Date(endDateInput.value);
+            const dailyStudyMinutes = parseFloat(dailyHoursSelect.value) * 60;
+            
+            // Validate dates
+            if (startDate >= endDate) {
+                alert('A data de término deve ser posterior à data de início.');
+                generateBtn.innerHTML = originalBtnContent;
+                generateBtn.disabled = false;
+                return;
+            }
+            
+            // Prepare lessons from selected subjects
+            let allLessons = [];
+            selectedSubjects.forEach(subject => {
+                studyData[subject].forEach(lesson => {
+                    allLessons.push({
+                        subject,
+                        lesson: lesson.lesson,
+                        duration: lesson.duration
+                    });
+                });
+            });
+            
+            // Calculate total study time in hours
+            const totalStudyMinutes = allLessons.reduce((sum, lesson) => sum + lesson.duration, 0);
+            const totalStudyHours = (totalStudyMinutes / 60).toFixed(1);
+            estimatedTimeSpan.textContent = ${totalStudyHours} horas;
+            
+            // Shuffle lessons to mix subjects
+            allLessons = shuffleArray(allLessons);
+            
+            // Update total generated lessons for progress calculation
+            totalGeneratedLessons = allLessons.length;
+            
+            // Generate schedule dates between start and end dates (only selected days)
+            const scheduleDates = generateStudyDates(startDate, endDate, selectedDays);
+            
+            // Distribute lessons across available dates
+            const schedule = distributeLessons(scheduleDates, dailyStudyMinutes, allLessons);
+            
+            // Generate schedule HTML
+            renderSchedule(schedule);
+            
+            // Restore button state
+            setTimeout(() => {
+                generateBtn.innerHTML = originalBtnContent;
+                generateBtn.disabled = false;
+            }, 500);
+        }
+        
+        // Generate array of valid study dates between start and end dates (only selected days)
+        function generateStudyDates(startDate, endDate, selectedDays) {
+            const dates = [];
+            const currentDate = new Date(startDate);
+            
+            while (currentDate <= endDate) {
+                const dayOfWeek = currentDate.getDay();
+                
+                // Check if current day is selected
+                if (selectedDays.includes(dayOfWeek)) {
+                    dates.push(new Date(currentDate));
+                }
+                
+                currentDate.setDate(currentDate.getDate() + 1);
+            }
+            
+            return dates;
+        }
+        
+        // Distribute lessons across available dates
+        function distributeLessons(dates, dailyMinutes, lessons) {
+            const schedule = [];
+            let currentDateIndex = 0;
+            let currentDayMinutes = 0;
+            let lessonIndex = 0;
+            
+            while (lessonIndex < lessons.length && currentDateIndex < dates.length) {
+                const lesson = lessons[lessonIndex];
+                
+                // Check if we need to move to next day
+                if (currentDayMinutes + lesson.duration > dailyMinutes) {
+                    currentDateIndex++;
+                    currentDayMinutes = 0;
+                    
+                    // If we've run out of dates, break
+                    if (currentDateIndex >= dates.length) break;
+                }
+                
+                // Add lesson to schedule
+                schedule.push({
+                    date: dates[currentDateIndex],
+                    lesson: lesson,
+                    dayMinutesUsed: currentDayMinutes
+                });
+                
+                currentDayMinutes += lesson.duration;
+                lessonIndex++;
+            }
+            
+            // Check if all lessons were scheduled
+            if (lessonIndex < lessons.length) {
+                const remainingLessons = lessons.length - lessonIndex;
+                const remainingMinutes = lessons.slice(lessonIndex).reduce((sum, l) => sum + l.duration, 0);
+                const remainingHours = (remainingMinutes / 60).toFixed(1);
+                
+                alert(Atenção: Não foi possível agendar todas as aulas no período selecionado.\n\nFaltaram ${remainingLessons} aulas (${remainingHours} horas).\n\nConsidere aumentar o período, as horas diárias ou reduzir o número de matérias.);
+            }
+            
+            return schedule;
+        }
+        
+        // Render schedule to HTML
+        function renderSchedule(schedule) {
+            scheduleBody.innerHTML = '';
+            
+            if (schedule.length === 0) {
+                scheduleBody.innerHTML = 
+                    <tr>
+                        <td colspan="7" class="px-6 py-4 text-center text-gray-500">
+                            <i class="fas fa-exclamation-triangle text-4xl text-yellow-400 mb-2"></i>
+                            <p class="text-lg">Nenhuma aula foi agendada</p>
+                            <p class="text-sm mt-1">Ajuste as configurações para incluir mais tempo de estudo</p>
+                        </td>
+                    </tr>
+                ;
+                updateProgressCounters();
+                return;
+            }
+            
+            schedule.forEach((item, index) => {
+                const { date, lesson } = item;
+                const dayOfWeek = weekDays[date.getDay()];
+                const lessonId = ${date.toISOString().split('T')[0]}-${index};
+                const isCompleted = completedLessons[lessonId] || false;
+                
+                const row = document.createElement('tr');
+                if (isCompleted) {
+                    row.classList.add('bg-green-50', 'completed-row');
+                }
+                
+                row.innerHTML = 
+                    <td class="px-6 py-4 whitespace-nowrap" data-label="Concluído">
+                        <input type="checkbox" ${isCompleted ? 'checked' : ''} class="complete-checkbox h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded" data-lesson-id="${lessonId}">
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap" data-label="Data">
+                        <div class="text-sm text-gray-900">${formatDate(date)}</div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap" data-label="Dia da Semana">
+                        <div class="text-sm text-gray-900">${dayOfWeek}</div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap" data-label="Matéria">
+                        <div class="text-sm text-gray-900">${lesson.subject}</div>
+                    </td>
+                    <td class="px-6 py-4" data-label="Aula">
+                        <div class="text-sm text-gray-900">${lesson.lesson}</div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap" data-label="Duração">
+                        <div class="text-sm text-gray-900">${formatDuration(lesson.duration)}</div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium" data-label="Ações">
+                        <button class="text-indigo-600 hover:text-indigo-900 mr-3 note-btn" data-lesson-id="${lessonId}">
+                            <i class="fas fa-sticky-note"></i>
+                        </button>
+                        <button class="text-gray-600 hover:text-gray-900 reminder-btn" data-lesson-id="${lessonId}">
+                            <i class="fas fa-bell"></i>
+                        </button>
+                    </td>
+                ;
+                
+                scheduleBody.appendChild(row);
+            });
+            
+            // Add event listeners to checkboxes
+            document.querySelectorAll('.complete-checkbox').forEach(checkbox => {
+                checkbox.addEventListener('change', function() {
+                    const lessonId = this.dataset.lessonId;
+                    completedLessons[lessonId] = this.checked;
+                    localStorage.setItem('completedLessons', JSON.stringify(completedLessons));
+                    
+                    const row = this.closest('tr');
+                    if (this.checked) {
+                        row.classList.add('bg-green-50', 'completed-row');
+                    } else {
+                        row.classList.remove('bg-green-50', 'completed-row');
+                    }
+                    
+                    updateProgressCounters();
+                });
+            });
+            
+            // Add event listeners to action buttons
+            document.querySelectorAll('.note-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const lessonId = this.dataset.lessonId;
+                    alert(Adicionar nota para a aula ${lessonId});
+                });
+            });
+            
+            document.querySelectorAll('.reminder-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const lessonId = this.dataset.lessonId;
+                    alert(Configurar lembrete para a aula ${lessonId});
+                });
+            });
+            
+            // Update progress counters
+            updateProgressCounters();
+        }
+        
+        // Helper functions
+        function shuffleArray(array) {
+            const newArray = [...array];
+            for (let i = newArray.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+            }
+            return newArray;
+        }
+        
+        function formatDate(date) {
+            return date.toLocaleDateString('pt-BR');
+        }
+        
+        function formatDuration(minutes) {
+            const hours = Math.floor(minutes / 60);
+            const mins = Math.round(minutes % 60);
+            return ${hours}h ${mins}min;
+        }
+
+        // Export to JSON
+        function exportToJson() {
+            const schedule = Array.from(document.querySelectorAll('#schedule-table tbody tr'))
+                .map(row => {
+                    const cols = row.querySelectorAll('td');
+                    return {
+                        completed: cols[0].querySelector('input').checked,
+                        date: cols[1].textContent,
+                        day: cols[2].textContent,
+                        subject: cols[3].textContent,
+                        lesson: cols[4].textContent,
+                        duration: cols[5].textContent
+                    };
+                });
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(schedule, null, 2));
+            const downloadAnchorNode = document.createElement('a');
+            downloadAnchorNode.setAttribute("href", dataStr);
+            downloadAnchorNode.setAttribute("download", "cronograma_estudos.json");
+            document.body.appendChild(downloadAnchorNode);
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+        }
+
+        // Export to PDF (basic implementation using html2pdf)
+        function exportToPdf() {
+            const element = document.getElementById('schedule-table');
+            html2pdf().from(element).save('cronograma_estudos.pdf');
+        }
+
+        // Clear progress
+        function clearProgress() {
+            if (confirm('Tem certeza que deseja limpar todo o progresso?')) {
+                completedLessons = {};
+                localStorage.setItem('completedLessons', JSON.stringify(completedLessons));
+                updateProgressCounters();
+                document.querySelectorAll('.complete-checkbox').forEach(checkbox => {
+                    checkbox.checked = false;
+                    const row = checkbox.closest('tr');
+                    row.classList.remove('bg-green-50', 'completed-row');
+                });
+            }
+        }
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+</body>
+</html>
